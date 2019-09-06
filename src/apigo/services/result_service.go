@@ -6,18 +6,16 @@ import (
 	"strconv"
 	"net/http"
 	"time"
-	"fmt"
 )
 
 func GetResult(userId string) (*domains.Result,*utils.ApiError) {
-
-
-	respChan := make(chan domains.Result)
+	userChan := make(chan domains.User)
+	userErrChan := make(chan utils.ApiError)
 	errChan := make(chan utils.ApiError)
-	timeout := time.After(5*time.Second)
+
 
 	go func() {
-		time.Sleep(time.Second*10)
+		time.Sleep(time.Second*5)
 		errChan <- utils.ApiError{
 			"TIEMPO AGOTADO",
 			http.StatusGatewayTimeout,
@@ -44,10 +42,18 @@ func GetResult(userId string) (*domains.Result,*utils.ApiError) {
 		ID: userIdInt,
 	}
 
-	errores := user.Get()
+	go user.GetChan(userChan, userErrChan)
 
-	if errores != nil {
-		return nil,errores
+
+	SELECT:
+	select {
+		case error := <- errChan:
+			return nil, &error
+		case errores := <- userErrChan:
+				return nil,&errores
+		case <- userChan:
+			break SELECT
+
 	}
 
 	country := domains.Country{
@@ -58,10 +64,9 @@ func GetResult(userId string) (*domains.Result,*utils.ApiError) {
 		ID: user.SiteID,
 	}
 
-
-
 	go country.GetCH(chanel)
 	go site.GetCH(chanel)
+
 	resultados2 := domains.Result{
 		User:nil,
 		Site:nil,
@@ -71,12 +76,16 @@ func GetResult(userId string) (*domains.Result,*utils.ApiError) {
 
 
 	for i:=0;i<2;i++{
-		resultados:= <- chanel
-		if resultados.Site == nil {
-			resultados2.Country = resultados.Country
-		}
-		if resultados.Country== nil {
-			resultados2.Site = resultados.Site
+		select {
+		case error := <- errChan:
+			return nil, &error
+		case resultados:= <- chanel:
+			if resultados.Site == nil {
+				resultados2.Country = resultados.Country
+			}
+			if resultados.Country== nil {
+				resultados2.Site = resultados.Site
+			}
 		}
 	}
 

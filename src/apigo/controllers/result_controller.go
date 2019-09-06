@@ -31,7 +31,7 @@ func GetResultFromAPI(c *gin.Context){
 	}*/
 
 	if circuitbraker.CircuitResult.State != "Closed"{
-		c.JSON(http.StatusInternalServerError, "Servidor no disponible, intente nuevamente más tarde")
+		c.JSON(http.StatusInternalServerError, "Servidor no disponible, intente nuevamente más tarde CIRCUITBREAKER")
 		return
 	}
 	response, apiErr := services.GetResult(userId)

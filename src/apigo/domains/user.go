@@ -77,6 +77,7 @@ func (user *User) Get() *utils.ApiError{
 	//se puede crear la variable dentro del if aunque exista. se debe usarla en el if
 	if err := json.Unmarshal(data, &user);err != nil {
 		//fmt.Println(response)
+
 		return &utils.ApiError{
 			Message: err.Error(),
 			Status: http.StatusInternalServerError,
@@ -84,4 +85,48 @@ func (user *User) Get() *utils.ApiError{
 	}
 
 	return nil
+}
+func (user *User) GetChan(usersChan chan User,errorChan chan utils.ApiError){
+	//id := strconv.FormatInt(int64(user.ID), 10)
+	id := strconv.Itoa(user.ID)
+	if id == "" {
+		errorChan <-  utils.ApiError{
+			Message: "Site ID empty",
+			Status: http.StatusBadRequest,
+		}
+		return
+	}
+	url := fmt.Sprintf("%s%s",utils.UrlUsers,id)
+	//fmt.Println(url)
+	response,err := http.Get(url)
+	if err != nil {
+		errorChan <- utils.ApiError{
+			Message: err.Error(),
+			Status: http.StatusInternalServerError,
+		}
+		return
+	}
+	data, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		errorChan <- utils.ApiError{
+			Message: err.Error(),
+			Status: http.StatusInternalServerError,
+		}
+		return
+	}
+
+	//se puede crear la variable dentro del if aunque exista. se debe usarla en el if
+	if err := json.Unmarshal(data, &user);err != nil {
+		//fmt.Println(response)
+
+		errorChan <- utils.ApiError{
+			Message: err.Error(),
+			Status: http.StatusInternalServerError,
+		}
+	}
+	usuarioOk := User{
+	}
+	usersChan <- usuarioOk
+
+	return
 }
